@@ -109,14 +109,25 @@ class Annotator:
                             thickness=tf,
                             lineType=cv2.LINE_AA)
 
-    def masks(self, masks, colors, im_gpu, alpha=0.5, retina_masks=False):
+    def masks(self, masks, colors, im_gpu, alpha=1.0, retina_masks=False, invert_mask=True):
         """Plot masks at once.
         Args:
             masks (tensor): predicted masks on cuda, shape: [n, h, w]
             colors (List[List[Int]]): colors for predicted masks, [[r, g, b] * n]
             im_gpu (tensor): img is in cuda, shape: [3, h, w], range: [0, 1]
             alpha (float): mask transparency: 0.0 fully transparent, 1.0 opaque
+            invert (boolean): True makes background around segmentations black
         """
+        if invert_mask:
+            unmask = torch.unbind(masks,dim=0)
+            zero_mask = torch.zeros([masks.shape[1],masks.shape[2]])
+            for x in unmask:
+                zero_mask = torch.logical_or(zero_mask,x)
+            zero_mask = torch.logical_not(zero_mask)
+            new_mask = torch.zeros_like(masks)
+            new_mask[:] += zero_mask
+            masks = new_mask
+            
         if self.pil:
             # Convert to numpy first
             self.im = np.asarray(self.im).copy()
